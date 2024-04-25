@@ -1,15 +1,14 @@
 //Matheus Kodi Y. RA: 2503557
 
-// Função utilitária para criar interface de linha de comando
 const readline = require('readline');
+
 function createInterface() {
   return readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
   });
 }
 
-// Função utilitária para imprimir uma mensagem e solicitar entrada do usuário
 function prompt(message) {
   const rl = createInterface();
   return new Promise((resolve) => {
@@ -20,7 +19,6 @@ function prompt(message) {
   });
 }
 
-// Classe Contato
 class Contato {
   constructor(nome, telefone, email) {
     this.nome = nome;
@@ -29,9 +27,16 @@ class Contato {
   }
 }
 
-// Adapter para adicionar/remover/listar contatos
-class ContatoAdapter {
+class ContatoManager {
+  adicionarContato(contato) {}
+  removerContato(nome) {}
+  listarContatos() {}
+  buscarContatosPorNome(nome) {}
+}
+
+class ContatoAdapter extends ContatoManager {
   constructor() {
+    super();
     this.contatos = [];
   }
 
@@ -40,15 +45,18 @@ class ContatoAdapter {
   }
 
   removerContato(nome) {
-    this.contatos = this.contatos.filter(contato => contato.nome !== nome);
+    this.contatos = this.contatos.filter((contato) => contato.nome !== nome);
   }
 
   listarContatos() {
     return this.contatos;
   }
+
+  buscarContatosPorNome(nome) {
+    return this.contatos.filter((contato) => contato.nome.includes(nome));
+  }
 }
 
-// Facade para buscar contatos
 class BuscaContatosFacade {
   constructor(gerenciadorContatos) {
     this.gerenciadorContatos = gerenciadorContatos;
@@ -67,93 +75,96 @@ class BuscaContatosFacade {
   }
 
   buscarContatosPorNome(nome) {
-    return this.gerenciadorContatos.listarContatos().filter(contato => contato.nome.includes(nome));
+    return this.gerenciadorContatos.buscarContatosPorNome(nome);
   }
 }
 
-// CLI para interação com o sistema
 class CLI {
-  constructor(gerenciadorContatosFacade) {
-    this.gerenciadorContatosFacade = gerenciadorContatosFacade;
+  constructor(contatoManager) {
+    this.contatoManager = contatoManager;
+  }
+
+  async executar() {
+    while (true) {
+      console.log('\nEscolha uma opção:');
+      console.log('1. Adicionar Contato');
+      console.log('2. Remover Contato');
+      console.log('3. Listar Contatos');
+      console.log('4. Buscar Contatos por Nome');
+      console.log('5. Sair');
+
+      const opcao = parseInt(await prompt('Opção: '));
+
+      switch (opcao) {
+        case 1:
+          await this.adicionarContato();
+          break;
+        case 2:
+          await this.removerContato();
+          break;
+        case 3:
+          this.listarContatos();
+          break;
+        case 4:
+          await this.buscarContatosPorNome();
+          break;
+        case 5:
+          console.log('Saindo...');
+          process.exit(0);
+        default:
+          console.log('Opção inválida!');
+      }
+    }
   }
 
   async adicionarContato() {
-    const nome = await prompt("Nome: ");
-    const telefone = await prompt("Telefone: ");
-    const email = await prompt("Email: ");
+    const nome = await prompt('Nome: ');
+    const telefone = await prompt('Telefone: ');
+    const email = await prompt('Email: ');
     const novoContato = new Contato(nome, telefone, email);
-    this.gerenciadorContatosFacade.adicionarContato(novoContato);
+    this.contatoManager.adicionarContato(novoContato);
     console.log(`Contato ${nome} adicionado.`);
   }
 
   async removerContato() {
-    const nome = await prompt("Nome do contato a ser removido: ");
-    const contatosAntesRemocao = this.gerenciadorContatosFacade.listarContatos().length;
-    this.gerenciadorContatosFacade.removerContato(nome);
-    const contatosDepoisRemocao = this.gerenciadorContatosFacade.listarContatos().length;
+    const nome = await prompt('Nome do contato a ser removido: ');
+    const contatosAntesRemocao = this.contatoManager.listarContatos().length;
+    this.contatoManager.removerContato(nome);
+    const contatosDepoisRemocao = this.contatoManager.listarContatos().length;
     if (contatosAntesRemocao === contatosDepoisRemocao) {
-        console.log(`Contato ${nome} não encontrado.`);
+      console.log(`Contato ${nome} não encontrado.`);
     } else {
-        console.log(`Contato ${nome} removido.`);
+      console.log(`Contato ${nome} removido.`);
     }
-}
-
+  }
 
   listarContatos() {
-    const contatos = this.gerenciadorContatosFacade.listarContatos();
-    console.log("Lista de Contatos:");
-    contatos.forEach(contato => console.log(contato.nome, contato.telefone, contato.email));
+    const contatos = this.contatoManager.listarContatos();
+    console.log('Lista de Contatos:');
+    contatos.forEach((contato) =>
+      console.log(contato.nome, contato.telefone, contato.email),
+    );
   }
 
   async buscarContatosPorNome() {
-    const nome = await prompt("Nome para buscar: ");
-    const contatosEncontrados = this.gerenciadorContatosFacade.buscarContatosPorNome(nome);
+    const nome = await prompt('Nome para buscar: ');
+    const contatosEncontrados = this.contatoManager.buscarContatosPorNome(nome);
     if (contatosEncontrados.length === 0) {
-        console.log(`Nenhum contato encontrado com o nome '${nome}'.`);
+      console.log(`Nenhum contato encontrado com o nome '${nome}'.`);
     } else {
-        console.log(`Resultados da busca por '${nome}':`);
-        contatosEncontrados.forEach(contato => console.log(contato.nome, contato.telefone, contato.email));
-    }
-}
-
-}
-
-// Interface para o usuário interagir
-const gerenciadorContatos = new ContatoAdapter();
-const buscaContatosFacade = new BuscaContatosFacade(gerenciadorContatos);
-const cli = new CLI(buscaContatosFacade);
-
-async function main() {
-  while (true) {
-    console.log("\nEscolha uma opção:");
-    console.log("1. Adicionar Contato");
-    console.log("2. Remover Contato");
-    console.log("3. Listar Contatos");
-    console.log("4. Buscar Contatos por Nome");
-    console.log("5. Sair");
-
-    const opcao = parseInt(await prompt("Opção: "));
-
-    switch (opcao) {
-      case 1:
-        await cli.adicionarContato();
-        break;
-      case 2:
-        await cli.removerContato();
-        break;
-      case 3:
-        cli.listarContatos();
-        break;
-      case 4:
-        await cli.buscarContatosPorNome();
-        break;
-      case 5:
-        console.log("Saindo...");
-        process.exit(0);
-      default:
-        console.log("Opção inválida!");
+      console.log(`Resultados da busca por '${nome}':`);
+      contatosEncontrados.forEach((contato) =>
+        console.log(contato.nome, contato.telefone, contato.email),
+      );
     }
   }
+}
+
+async function main() {
+  const gerenciadorContatos = new ContatoAdapter();
+  const buscaContatosFacade = new BuscaContatosFacade(gerenciadorContatos);
+  const cli = new CLI(buscaContatosFacade);
+  await cli.executar();
 }
 
 main();
